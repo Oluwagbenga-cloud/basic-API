@@ -1,31 +1,86 @@
 package main
 
 import (
+	"errors"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
-	//"errors"
+	"github.com/go-playground/locales/id"
 )
 
 type book struct {
-	ID  	 string `json:"id"`
-    Title 	 string `json:"title"`
+	ID       string `json:"id"`
+	Title    string `json:"title"`
 	Author   string `json:"author"`
 	Quantity int    `json:"quantity"`
 }
 
 var books = []book{
-	{ID: "1", Title: "In Search of Lost Time", Author: "Marcel Proust",Quantity: 7},
-	{ID: "2", Title: "The Great Gatsby", Author: "F. Scott Fitzgerald",Quantity: 8},
+	{ID: "1", Title: "In Search of Lost Time", Author: "Marcel Proust", Quantity: 7},
+	{ID: "2", Title: "The Great Gatsby", Author: "F. Scott Fitzgerald", Quantity: 8},
 	{ID: "3", Title: "The Art of War", Author: "Tsun Zou", Quantity: 12},
 	{ID: "4", Title: "War and Peace", Author: "Leo Tolstoy", Quantity: 15},
 }
 
 func getBooks(c *gin.Context) {
-c. IndentedJSON(http.StatusOK, books)
+	c.IndentedJSON(http.StatusOK, books)
 }
 
-func main(){
+func bookById(c *gin.Context) {
+	id := c.Param("id")
+	book, err := getBookById(id)
+	if err != nil{
+		return
+	}
+	c.IndentedJSON(http.StatusOK, book)
+}
+
+func checkoutBook(c *gin.Context) {
+	id, ok := c.GetQuery("id")
+	if ok == false{
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message":"missing id query parameter."})
+		return
+	}
+} book, err := getBookById(id)
+
+if err != nil{
+	c.IndentedJSON(http.StatusNotFound, gin.H{"message":"Book not found"})	
+     return
+}
+
+if book.Quantity <= 0{
+	c.BindJSON(http.StatusBadRequest, gin.H{"message": "Book not avaialable"})
+	return
+
+}
+book.Quantity -= 1
+c.IndentedJSON(http.StatusOK, book)
+
+ 
+func getBookById(id string)(*book, error){
+	for i, b := range books{
+		if b.ID == id{
+			return &books[i], nil
+		}
+	} 
+	return nil, errors.New("Book not found") 
+}
+
+func createBooks(c *gin.Context) {
+     var newBook book
+	 err := c.BindJSON(&newBook)
+	 if err != nil {
+		 return 
+	 }
+	 books = append(books, newBook)
+	 c. IndentedJSON(http.StatusCreated, newBook)
+}
+
+func main() {
 	router := gin.Default()
-	router.GET("/books",getBooks)
+	router.GET("/books", getBooks)
+	router.POST("/books",createBooks)
+	router.PATCH("/checkout" checkoutBook)
+	router.GET("/books/:id", bookById)
 	router.Run("localhost:8080")
-} 
+}
